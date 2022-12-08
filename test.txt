@@ -1,3 +1,0 @@
-this is a test file
-this is a test file2
-test_main_2
