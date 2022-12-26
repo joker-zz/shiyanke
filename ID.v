@@ -18,9 +18,9 @@ module ID(
     output wire [`BR_WD-1:0] br_bus,
     
         //new
-    input wire ex_if_write_data,
-    input wire [4:0] ex_reg_id,
-    input wire [31:0] ex_write_data,
+    input wire [`EX_TO_ID_WD-1:0]  ex_to_id_bus,
+    
+    
     input wire mem_if_write_data,
     input wire [4:0] mem_reg_id,
     input wire [31:0] mem_write_data
@@ -34,6 +34,19 @@ module ID(
     wire wb_rf_we;
     wire [4:0] wb_rf_waddr;
     wire [31:0] wb_rf_wdata;
+    
+    wire ex_if_write_data;
+    wire [4:0] ex_reg_id;
+    wire [31:0] ex_write_data;
+    wire ex_pre_is_load;
+    
+    
+    assign {
+        ex_if_write_data,   //38
+        ex_reg_id,          //37:33
+        ex_write_data,      //32:1
+        ex_pre_is_load      //0
+    } = ex_to_id_bus;
 
     always @ (posedge clk) begin
         if (rst) begin
@@ -80,7 +93,7 @@ module ID(
     wire [2:0] sel_alu_src1;
     wire [3:0] sel_alu_src2;
     wire [11:0] alu_op;
-    wire [7:0] ram_op;
+    wire [4:0] ram_op;
 
     wire data_ram_en;
     wire [3:0] data_ram_wen;
@@ -156,15 +169,18 @@ module ID(
     assign inst_bne     = op_d[6'b00_0101];
 
     assign inst_sw      = op_d[6'b10_1011];
+    assign inst_lw      = op_d[6'b10_0011];
 
     assign inst_subu    = op_d[6'b00_0000]&func_d[6'b10_0011];
+    assign inst_xor     = op_d[6'b00_0000]&func_d[6'b10_0110];
     assign inst_jr      = op_d[6'b00_0000]&func_d[6'b00_1000];
     assign inst_addu    = op_d[6'b00_0000]&func_d[6'b10_0001];
     assign inst_sll     = op_d[6'b00_0000]&func_d[6'b00_0000];
     assign inst_or      = op_d[6'b00_0000]&func_d[6'b10_0101];
 
-    //将 rs 的值传给 reg1
-    assign sel_alu_src1[0] = inst_ori | inst_addiu | inst_subu | inst_addu | inst_or |inst_sw;
+    //将 rs,base 的值传给 reg1
+    assign sel_alu_src1[0] = inst_ori   |   inst_addiu  |   inst_subu | inst_addu | 
+                             inst_or    |   inst_sw     |   inst_lw   | inst_xor    ;
     // assign sel_alu_src1[0] = inst_ori | inst_addiu;
 
     // 将pc值 传给 reg1
@@ -175,11 +191,11 @@ module ID(
 
     
     // 将 rt 的值传给 reg2
-    assign sel_alu_src2[0] = inst_subu | inst_addu | inst_sll | inst_or;
+    assign sel_alu_src2[0] = inst_subu | inst_addu | inst_sll | inst_or | inst_xor;
     //assign sel_alu_src2[0] = 1'b0;
     
     // 立即数的符号扩张 传给 reg2
-    assign sel_alu_src2[1] = inst_lui | inst_addiu |inst_sw;
+    assign sel_alu_src2[1] = inst_lui | inst_addiu |inst_sw | inst_lw;
 
     // 32'b8 to reg2
     assign sel_alu_src2[2] = inst_jal;
@@ -189,30 +205,31 @@ module ID(
 
 
 
-    assign op_add = inst_addiu | inst_addu |inst_sw |inst_jal;
-    //NEW
-    assign op_sub = inst_subu;
-
+    assign op_add   = inst_addiu | inst_addu |inst_sw |inst_jal | inst_lw;
+    assign op_sub   = inst_subu;
     assign op_slt   = 1'b0;
     assign op_sltu  = 1'b0;
     assign op_and   = 1'b0;
     assign op_nor   = 1'b0;
     assign op_or    = inst_ori | inst_or;
-    assign op_xor   = 1'b0;
+    assign op_xor   = inst_xor;
     assign op_sll   = inst_sll;
     assign op_srl   = 1'b0;
     assign op_sra   = 1'b0;
     assign op_lui   = inst_lui;
 
-    assign alu_op = {op_add, op_sub, op_slt, op_sltu,
-                     op_and, op_nor, op_or, op_xor,
-                     op_sll, op_srl, op_sra, op_lui};
-    assign ram_op = {1'b0  , 1'b0  , 1'b0  , 1'b0   ,
-                     1'b0  , 1'b0  , 1'b0  , inst_sw};
+    assign alu_op = {op_add, op_sub, op_slt , op_sltu,
+                     op_and, op_nor, op_or  , op_xor,
+                     op_sll, op_srl, op_sra , op_lui};
+    assign ram_op[0] = 0;
+    assign ram_op[1] = 0;
+    assign ram_op[2] = 0;
+    assign ram_op[3] = 0;
+    assign ram_op[4] = inst_lw;
 
 
     // load and store enable
-    assign data_ram_en = inst_sw;
+    assign data_ram_en = inst_sw | inst_lw;
 
     // write enable
     assign data_ram_wen = inst_sw ? 4'b1111 :1'b0;
@@ -220,14 +237,16 @@ module ID(
 
 
     // regfile store enable
-    assign rf_we = inst_ori | inst_lui | inst_addiu |inst_subu | inst_jal | inst_addu | inst_sll | inst_or;
+    assign rf_we =  inst_ori | inst_lui | inst_addiu| inst_subu | 
+                    inst_jal | inst_addu| inst_sll  | inst_or   | 
+                    inst_lw  | inst_xor;
 
 
 
     // store in [rd]
-    assign sel_rf_dst[0] = inst_subu | inst_addu | inst_sll | inst_or;
+    assign sel_rf_dst[0] = inst_subu | inst_addu | inst_sll | inst_or | inst_xor;
     // store in [rt] 
-    assign sel_rf_dst[1] = inst_ori | inst_lui | inst_addiu |inst_sw;
+    assign sel_rf_dst[1] = inst_ori | inst_lui | inst_addiu |inst_lw;
     // store in [31]
     assign sel_rf_dst[2] = inst_jal;
 
@@ -237,7 +256,7 @@ module ID(
                     | {5{sel_rf_dst[2]}} & 32'd31;
 
     // 0 from alu_res ; 1 from ld_res
-    assign sel_rf_res = 0; 
+    assign sel_rf_res = inst_lw; 
     //new
 
     assign rdata1 =             (ex_if_write_data   &   (rs == ex_reg_id))  
@@ -257,7 +276,12 @@ module ID(
                                     temprdata2));
 
     //end
+   assign stallreq = (ex_pre_is_load&&ex_if_write_data&&(rs == ex_reg_id)) | 
+                     (ex_pre_is_load&&ex_if_write_data&&(rt == ex_reg_id));
+    
+    
     assign id_to_ex_bus = {
+        ram_op,         // 163:159
         id_pc,          // 158:127
         inst,           // 126:95
         alu_op,         // 94:83

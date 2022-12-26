@@ -42,8 +42,10 @@ module MEM(
     wire [31:0] rf_wdata;
     wire [31:0] ex_result;
     wire [31:0] mem_result;
+    wire [4:0] ram_op;
 
     assign {
+        ram_op,         // 80:76
         mem_pc,         // 75:44
         data_ram_en,    // 43
         data_ram_wen,   // 42:39
@@ -53,7 +55,7 @@ module MEM(
         ex_result       // 31:0
     } =  ex_to_mem_bus_r;
 
-
+    assign mem_result = ram_op[4] ? data_sram_rdata : 32'b0;
 
     assign rf_wdata = sel_rf_res ? mem_result : ex_result;
 

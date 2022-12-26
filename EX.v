@@ -13,11 +13,9 @@ module EX(
     output wire [3:0] data_sram_wen,
     output wire [31:0] data_sram_addr,
     output wire [31:0] data_sram_wdata,
-    //new
-    //ex to id
-    output wire ex_if_write_data,
-    output wire [4:0] ex_reg_id,
-    output wire [31:0] ex_write_data
+
+    output wire [`EX_TO_ID_WD-1:0]  ex_to_id_bus
+    
 );
 
     reg [`ID_TO_EX_WD-1:0] id_to_ex_bus_r;
@@ -48,8 +46,15 @@ module EX(
     wire sel_rf_res;
     wire [31:0] rf_rdata1, rf_rdata2;
     reg is_in_delayslot;
+    wire [4:0] ram_op;
+    
+    wire ex_if_write_data;
+    wire [4:0] ex_reg_id;
+    wire [31:0] ex_write_data;
+    wire ex_pre_is_load;
 
     assign {
+        ram_op,         // 163 :159
         ex_pc,          // 158:127
         inst,           // 126:95
         alu_op,         // 94:83
@@ -100,6 +105,7 @@ module EX(
 
 
     assign ex_to_mem_bus = {
+        ram_op,         // 80:76
         ex_pc,          // 75:44
         data_ram_en,    // 43
         data_ram_wen,   // 42:39
@@ -109,9 +115,18 @@ module EX(
         ex_result       // 31:0
     };
     //new
+    
+    
+    assign  ex_to_id_bus ={
+        ex_if_write_data,   //38
+        ex_reg_id,          //37:33
+        ex_write_data,      //32:0
+        ex_pre_is_load      //0
+    } ;
     assign ex_if_write_data = rf_we;
     assign ex_reg_id = rf_waddr;
     assign ex_write_data = ex_result;
+    assign ex_pre_is_load = |ram_op;
     //end
     // MUL part
     wire [63:0] mul_result;

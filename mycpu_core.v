@@ -28,14 +28,13 @@ module mycpu_core(
     wire [`BR_WD-1:0] br_bus; 
     wire [`DATA_SRAM_WD-1:0] ex_dt_sram_bus;
     wire [`WB_TO_RF_WD-1:0] wb_to_rf_bus;
+    wire [`EX_TO_ID_WD-1:0]  ex_to_id_bus;
     wire [`StallBus-1:0] stall;
     //new
-    wire ex_if_write_data;
-    wire [4:0] ex_reg_id;
-    wire [31:0] ex_write_data;
     wire mem_if_write_data;
     wire [4:0] mem_reg_id;
     wire [31:0] mem_write_data;
+    wire stallreq;
     //end
         IF u_IF(
             .clk             (clk             ),
@@ -51,7 +50,7 @@ module mycpu_core(
     
 
     ID u_ID(
-    	.clk               (clk                 ),
+    	.clk                (clk                ),
         .rst                (rst                ),
         .stall              (stall              ),
         .stallreq           (stallreq           ),
@@ -61,9 +60,7 @@ module mycpu_core(
         .id_to_ex_bus       (id_to_ex_bus       ),
         .br_bus             (br_bus             ),
         //new
-        .ex_if_write_data   (ex_if_write_data   ),
-        .ex_reg_id          (ex_reg_id          ),
-        .ex_write_data      (ex_write_data      ),
+        .ex_to_id_bus       (ex_to_id_bus       ),
         .mem_if_write_data  (mem_if_write_data  ),
         .mem_reg_id         (mem_reg_id         ),
         .mem_write_data     (mem_write_data     )
@@ -81,9 +78,7 @@ module mycpu_core(
         .data_sram_addr  (data_sram_addr        ),
         .data_sram_wdata (data_sram_wdata       ),
         //new
-        .ex_if_write_data   (ex_if_write_data   ),
-        .ex_reg_id          (ex_reg_id          ),
-        .ex_write_data      (ex_write_data      )
+        .ex_to_id_bus    (ex_to_id_bus          )
         //end
     );
 
@@ -114,8 +109,9 @@ module mycpu_core(
     );
 
     CTRL u_CTRL(
-    	.rst   (rst   ),
-        .stall (stall )
+    	.rst                (rst   ),
+        .stall              (stall ),
+        .stallreq_for_load  (stallreq)
     );
     
 endmodule
