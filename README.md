@@ -13,30 +13,15 @@ xor
 jr     
 addu  
 sll   
-or    
+or   
 
-slti
-sltiu
-addi
-andi
-xori
-j
-bgez
-bgezal
-bgtz
-blez
-bltz
-bltzal
-add
-and
-sub
-jalr
-sltu
-slt
-nor
-sllv
-sra
-srav
-srl
-srlv
+slti		sltiu		addi  andi xori j 
+
+bgez bgezal bgtz blez bltz 
+
+bltzal add and sub jalr 
+
+sltu slt nor sllv sra srav 
+
+srl srlv 
 
