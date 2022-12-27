@@ -23,5 +23,8 @@ bltzal add and sub jalr
 
 sltu slt nor sllv sra srav 
 
-srl srlv 
+srl srlv
 
+div divu mult multu
+
+mfhi mflo mthi mtlo
